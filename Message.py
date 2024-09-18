@@ -4,12 +4,18 @@ from abc import ABC
 class Message(ABC):
     def __init__(self, payload, stamp):
         self.payload = payload
-        self.stamp = stamp        
+        self.stamp = stamp
+        
+    def getPayload(self):
+        return self.payload
+    
+    def getStamp(self):
+        return self.stamp   
     
 class MessageDedie(Message):
-    def __init__(self, payload, stamp, to):
+    def __init__(self, payload, stamp, dest):
         super().__init__(payload, stamp)
-        self.to = to
+        self.dest = dest
         
 class MessageBroadCast(Message):
     def __init__(self, payload, stamp, sender):
