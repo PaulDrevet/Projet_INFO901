@@ -1,14 +1,17 @@
-class Message():
-    def __init__(self, estampillage, contenu, to):
-        self.contenu = contenu
-        self.estampillage = estampillage
-        self.to = to
+from abc import ABC
 
-    def getEstampillage(self):
-        return self.estampillage
+# Classe abstraite pour les messages génériques
+class Message(ABC):
+    def __init__(self, payload, stamp):
+        self.payload = payload
+        self.stamp = stamp        
     
-    def getContenu(self):
-        return self.contenu
-    
-    def getTo(self):
-        return self.to
+class MessageDedie(Message):
+    def __init__(self, payload, stamp, to):
+        super().__init__(payload, stamp)
+        self.to = to
+        
+class MessageBroadCast(Message):
+    def __init__(self, payload, stamp, sender):
+        super().__init__(payload, stamp)
+        self.sender = sender
