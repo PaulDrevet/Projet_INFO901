@@ -21,3 +21,7 @@ class MessageBroadCast(Message):
     def __init__(self, payload, stamp, sender):
         super().__init__(payload, stamp)
         self.sender = sender
+        
+class MessageSynchronized(Message):
+    def __init__(self, payload, stamp, sender):
+        super().__init__(payload, stamp, sender)

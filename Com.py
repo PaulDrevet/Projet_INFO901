@@ -2,6 +2,7 @@ from pyeventbus3.pyeventbus3 import *
 from time import sleep
 from Message import MessageDedie
 from Message import MessageBroadCast
+from Synchronization import Synchronization
 from Token import Token
 from State import State
 import threading
@@ -17,6 +18,7 @@ class Com():
 
         self.clock = 0
         self.tokenState = State.NULL
+        self.counterSynchro = nbProcess
         self.semaphore = threading.Semaphore()
         self.mailbox = []
         
@@ -44,6 +46,7 @@ class Com():
         self.clock = max(self.clock, stamp) + 1
         self.semaphore.release()
 
+    # Message asynchrone dédié
     @subscribe(threadMode = Mode.PARALLEL, onEvent=MessageDedie)
     def onReceive(self, event):
         if (event.dest == self.myId):
@@ -58,11 +61,13 @@ class Com():
         PyBus.Instance().post(m)
         print(self.getName() + " send: " + str(m.getPayload()) +  "Horloge :" + str(self.clock))
         
-        
+    
+    # Message asynchrone broadcast
     @subscribe(threadMode = Mode.PARALLEL, onEvent=MessageBroadCast)
     def onBroadcast(self, event):
         if (event.sender != self.myId):
             self.inc_clock_receive(event.getStamp())
+            self.mailbox.append(event)
             print(self.getName() + ' get message: ' + str(event.getPayload()) + "Horloge :" + str(self.clock))
         
     def broadcast(self, contenu):
@@ -71,6 +76,7 @@ class Com():
         print(self.getName() + " send: " + str(m.getPayload()) +  "Horloge :" + str(self.clock))
         PyBus.Instance().post(m)
         
+    # Gestion de section critique
     @subscribe(threadMode = Mode.PARALLEL, onEvent=Token)
     def onToken(self, event):
         if (event.to == self.myId):
@@ -94,6 +100,24 @@ class Com():
             
     def releaseSC(self):
         self.tokenState = State.RELEASE
+    
+    # Synchronisation
+    @subscribe(threadMode = Mode.PARALLEL, onEvent=Synchronization)
+    def onSynchronized(self, event):
+        if (event.sender != self.myId):
+            self.inc_clock_receive(event.stamp)
+            self.counterSynchro -= 1
+    
+    def synchronize(self):
+        self.inc_clock()
+        PyBus.Instance().post(Synchronization(self.clock, self.myId))
+        while (self.counterSynchro != 0):
+            sleep(1)
+        self.counterSynchro = self.nbProcess
+        
+    
+        
+        
         
 
                 
