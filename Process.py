@@ -22,10 +22,16 @@ class Process(Thread):
 
     def run(self):
         loop = 0
+            
         while self.alive:
             sleep(1)
-            if (self.myId) == 0:
-                self.com.broadcast("Hello")
+            self.com.sendTo("Hello", (loop+1)%self.nbProcess)
+            self.com.requestSC()
+            sleep(2)
+            self.com.releaseSC()
+            
+            
+            
             loop+=1
 
     def stop(self):
