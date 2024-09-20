@@ -9,14 +9,15 @@ from Synchronization import Synchronization
 from Token import Token
 from State import State
 import threading
+from random import randint
 
 
 class Com():
     nbProcessCreated = 0
-    def __init__(self, nbProcess):
+    def __init__(self, nbProcess, name):
         self.myId = Com.nbProcessCreated
         self.nbProcess = nbProcess
-        self.name = "P" + str(self.myId)
+        self.name = name
         Com.nbProcessCreated += 1
 
         self.clock = 0
@@ -49,6 +50,12 @@ class Com():
         self.semaphore.acquire()
         self.clock = max(self.clock, stamp) + 1
         self.semaphore.release()
+        
+    def getFirstMessage(self):
+        if (len(self.mailbox) > 0):
+            return self.mailbox.pop(0).getPayload()
+        else:
+            return None
 
     # Message asynchrone dédié
     @subscribe(threadMode = Mode.PARALLEL, onEvent=MessageDedie)
@@ -122,7 +129,7 @@ class Com():
         print(self.getName() + " is synchronized")
         self.counterSynchro = self.nbProcess
         
-    #Message broadcast synchrone
+    # Message broadcast synchrone
     @subscribe(threadMode = Mode.PARALLEL, onEvent=MessageBroadcastSynchrone)
     def onBroadcastSynchrone(self, event):
         if (event.sender != self.myId):
@@ -130,10 +137,10 @@ class Com():
             self.mailbox.append(event)
             self.messageReceived = True
     
-    def broadcastSynchrone(self, payload, _from):
+    def broadcastSynchrone(self, message, _from):
         if (self.myId == _from):
             self.inc_clock()
-            m = MessageBroadcastSynchrone(payload, self.clock, self.myId)
+            m = MessageBroadcastSynchrone(message, self.clock, self.myId)
             PyBus.Instance().post(m)
             self.synchronize()
         else :
@@ -142,7 +149,7 @@ class Com():
             self.synchronize()
             self.messageReceived = False
     
-    #Message dédié synchrone
+    # Message dédié synchrone
     @subscribe(threadMode = Mode.PARALLEL, onEvent=MessageDedieSynchrone)
     def receiveMessageSynchrone(self, event):
         if (event.dest == self.myId):
@@ -165,13 +172,24 @@ class Com():
             self.mailbox.append(event)
             self.messageReceived = True
         
-    def sendToSync(self, _to, payload):
+    def sendToSync(self, message, dest):
         self.inc_clock()
-        m = MessageDedieSynchrone(payload, self.clock, _to)
+        m = MessageDedieSynchrone(message, self.clock, dest)
         PyBus.Instance().post(m)
         while (self.messageReceived == False):
             sleep(1)
         self.messageReceived = False
+    
+    # Numérotation des processus
+    def generateId(self):
+        if (self.name == "P0"):
+            self.id = 0
+        else :
+            self.id = randint(1, self.nbProcess * 1000)
+    
+    
+        
+
     
         
         
