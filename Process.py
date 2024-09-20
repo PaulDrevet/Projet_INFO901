@@ -13,23 +13,18 @@ class Process(Thread):
         
         self.nbProcess = self.com.getNbProcess()
 
-        self.myId = self.com.getMyId()
-
         self.alive = True
         self.start()
     
 
     def run(self):
         loop = 0
+        sleep(2)
+        self.com.numerotation()
             
         while self.alive:
-            sleep(2)
-            
-            self.com.broadcastSynchrone("Hello", 0)
-            print(self.com.getFirstMessage())
-            
             sleep(1)
-            
+
             loop+=1
 
     def stop(self):

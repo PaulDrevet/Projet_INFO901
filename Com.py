@@ -5,6 +5,8 @@ from Message import MessageBroadCast
 from Message import MessageBroadcastSynchrone
 from Message import MessageDedieSynchrone
 from Message import MessageDedieSynchroneReply
+from MessageId import MessageSendId
+from MessageId import MessageRegenerateId
 from Synchronization import Synchronization
 from Token import Token
 from State import State
@@ -13,12 +15,10 @@ from random import randint
 
 
 class Com():
-    nbProcessCreated = 0
     def __init__(self, nbProcess, name):
-        self.myId = Com.nbProcessCreated
+        self.myId = -1
         self.nbProcess = nbProcess
         self.name = name
-        Com.nbProcessCreated += 1
 
         self.clock = 0
         self.tokenState = State.NULL
@@ -27,13 +27,16 @@ class Com():
         self.semaphore = threading.Semaphore()
         self.mailbox = []
         
+        self.generatedIds = []
+        self.nbProcessIdToGenerate = nbProcess - 1
+        
         PyBus.Instance().register(self, self)
         
         # if (self.nbProcessCreated == self.nbProcess):
         #     self.sendToken()
     
     def getNbProcess(self):
-        return Com.nbProcessCreated
+        return self.nbProcess
 
     def getMyId(self):
         return self.myId
@@ -183,9 +186,71 @@ class Com():
     # Numérotation des processus
     def generateId(self):
         if (self.name == "P0"):
-            self.id = 0
+            self.myId = 0
         else :
-            self.id = randint(1, self.nbProcess * 1000)
+            self.myId = randint(1, self.nbProcess)
+            
+    def numerotation(self):
+        self.generateId()
+        if self.name == "P0":
+            self.waitForIds()  # P0 attend que tous les processus envoient leurs IDs
+        else:
+            print(f"{self.name} a généré l'ID {self.myId} et l'envoie à P0.")
+            self.sendId(0)  # Envoyer l'ID à P0
+          
+    @subscribe(threadMode = Mode.PARALLEL, onEvent=MessageSendId)
+    def onReceiveId(self, event):
+        if (event.dest == self.myId):
+            print("P0 a reçu l'ID " + str(event.payload))
+            self.generatedIds.append(event.payload)
+            
+                    
+    def sendId(self, dest):
+        m = MessageSendId(self.myId, dest)
+        PyBus.Instance().post(m)
+        
+    # Générer un nouvel ID (autres processus)
+    @subscribe(threadMode=Mode.PARALLEL, onEvent=MessageRegenerateId)
+    def onRegenerateId(self, event):
+        if event.dest == self.myId:
+            print(f"{self.name} régénère son ID à la demande de P0.")
+            self.generateId()
+            self.sendId(0)  # Envoyer le nouvel ID à P0
+    
+    # Envoyer un messsage au processus pour régénérer l'id
+    def requestRegenerateId(self, idToRegenerate):
+        m = MessageRegenerateId(idToRegenerate)
+        PyBus.Instance().post(m)
+        print("Demande envoyé à tous les processus pour régénérer l'ID " + str(idToRegenerate)) 
+        
+    # Attendre que tous les processus envoient leurs IDs (P0)
+    def waitForIds(self):
+        print("Attente des IDs des autres processus...")
+        while len(self.generatedIds) < self.nbProcessIdToGenerate:  # On attend que tous les processus (sauf P0) envoient un ID
+            sleep(1)
+            print(f"{len(self.generatedIds)} IDs reçus")
+        self.checkForDuplicateIds()
+        
+    # Vérifier les doublons et gérer la régénération
+    def checkForDuplicateIds(self):
+        uniqueIds = set(self.generatedIds)
+        if len(uniqueIds) == len(self.generatedIds):
+            print("Tous les IDs sont uniques! Aucun ID à régénérer.")
+        else:
+            print("Des doublons ont été détectés! Demande de régénération.")
+            duplicateIds = [id for id in self.generatedIds if self.generatedIds.count(id) > 1]
+            self.nbProcessIdToGenerate = len(duplicateIds)
+            print(set(duplicateIds))
+            for id in set(duplicateIds):
+                # On demande aux processus concernés de régénérer leur ID
+                self.requestRegenerateId(id)
+            self.generatedIds = []  # Réinitialiser la liste et recommencer
+            print("Regen")
+            self.waitForIds()  # Recommencer le processus d'attente d'IDs après la régénération
+            
+    
+
+    
     
     
         

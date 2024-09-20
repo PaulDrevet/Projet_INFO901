@@ -37,7 +37,3 @@ class MessageDedieSynchroneReply(Message):
         super().__init__(payload, stamp)
         self.dest = dest
 
-class MessageSendId(Message):
-    def __init__(self, payload, dest):
-        super().__init__(payload)
-        self.dest = dest
