@@ -22,6 +22,17 @@ class MessageBroadCast(Message):
         super().__init__(payload, stamp)
         self.sender = sender
         
-class MessageSynchronized(Message):
+class MessageBroadcastSynchrone(Message):
     def __init__(self, payload, stamp, sender):
-        super().__init__(payload, stamp, sender)
+        super().__init__(payload, stamp)
+        self.sender = sender
+        
+class MessageDedieSynchrone(Message):
+    def __init__(self, payload, stamp, dest):
+        super().__init__(payload, stamp)
+        self.dest = dest
+        
+class MessageDedieSynchroneReply(Message):
+    def __init__(self, payload, stamp, dest):
+        super().__init__(payload, stamp)
+        self.dest = dest

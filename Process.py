@@ -24,14 +24,9 @@ class Process(Thread):
         loop = 0
             
         while self.alive:
-            self.com.sendTo("Hello", (loop+1)%self.nbProcess)
-            self.com.requestSC()
             sleep(1)
-            self.com.releaseSC()
-            
-            
-            
-            
+            self.com.synchronize()
+            sleep(1)
             
             loop+=1
 

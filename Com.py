@@ -2,6 +2,9 @@ from pyeventbus3.pyeventbus3 import *
 from time import sleep
 from Message import MessageDedie
 from Message import MessageBroadCast
+from Message import MessageBroadcastSynchrone
+from Message import MessageDedieSynchrone
+from Message import MessageDedieSynchroneReply
 from Synchronization import Synchronization
 from Token import Token
 from State import State
@@ -19,13 +22,14 @@ class Com():
         self.clock = 0
         self.tokenState = State.NULL
         self.counterSynchro = nbProcess
+        self.messageReceived = False
         self.semaphore = threading.Semaphore()
         self.mailbox = []
         
         PyBus.Instance().register(self, self)
         
-        if (self.myId == self.nbProcess - 1):
-            self.sendToken()
+        # if (self.nbProcessCreated == self.nbProcess):
+        #     self.sendToken()
     
     def getNbProcess(self):
         return Com.nbProcessCreated
@@ -111,9 +115,71 @@ class Com():
     def synchronize(self):
         self.inc_clock()
         PyBus.Instance().post(Synchronization(self.clock, self.myId))
-        while (self.counterSynchro != 0):
+        print(self.getName() + " wait for synchronization")
+        while (self.counterSynchro > 1): # 1 car on recoit pas notre propre message
+            print(self.getName() + " is waiting for " + str(self.counterSynchro) + " processes")
             sleep(1)
+        print(self.getName() + " is synchronized")
         self.counterSynchro = self.nbProcess
+        
+    #Message broadcast synchrone
+    @subscribe(threadMode = Mode.PARALLEL, onEvent=MessageBroadcastSynchrone)
+    def onBroadcastSynchrone(self, event):
+        if (event.sender != self.myId):
+            self.inc_clock_receive(event.getStamp())
+            self.mailbox.append(event)
+            self.messageReceived = True
+    
+    def broadcastSynchrone(self, payload, _from):
+        if (self.myId == _from):
+            self.inc_clock()
+            m = MessageBroadcastSynchrone(payload, self.clock, self.myId)
+            PyBus.Instance().post(m)
+            self.synchronize()
+        else :
+            while (self.messageReceived == False):
+                sleep(1)
+            self.synchronize()
+            self.messageReceived = False
+    
+    #Message dédié synchrone
+    @subscribe(threadMode = Mode.PARALLEL, onEvent=MessageDedieSynchrone)
+    def receiveMessageSynchrone(self, event):
+        if (event.dest == self.myId):
+            self.inc_clock_receive(event.getStamp())
+            self.mailbox.append(event)
+            self.messageReceived = True
+    
+    def receiveFromSynchrone(self):
+        while (self.messageReceived == False):
+            sleep(1)
+        lastMessage = self.mailbox.pop()
+        m = MessageDedieSynchrone("", self.clock, lastMessage.sender)
+        PyBus.Instance().post(m)
+        self.messageReceived = False
+    
+    @subscribe(threadMode = Mode.PARALLEL, onEvent=MessageDedieSynchroneReply)
+    def receiveMessageSynchroneReply(self, event):
+        if (event.dest == self.myId):
+            self.inc_clock_receive(event.getStamp())
+            self.mailbox.append(event)
+            self.messageReceived = True
+        
+    def sendToSync(self, _to, payload):
+        self.inc_clock()
+        m = MessageDedieSynchrone(payload, self.clock, _to)
+        PyBus.Instance().post(m)
+        while (self.messageReceived == False):
+            sleep(1)
+        self.messageReceived = False
+    
+        
+        
+    
+            
+    
+
+
         
     
         
