@@ -32,9 +32,7 @@ class Com():
         
         PyBus.Instance().register(self, self)
         
-        # if (self.nbProcessCreated == self.nbProcess):
-        #     self.sendToken()
-    
+
     def getNbProcess(self):
         return self.nbProcess
 
@@ -59,6 +57,9 @@ class Com():
             return self.mailbox.pop(0).getPayload()
         else:
             return None
+        
+    def isMailboxEmpty(self):
+        return len(self.mailbox) == 0
 
     # Message asynchrone dédié
     @subscribe(threadMode = Mode.PARALLEL, onEvent=MessageDedie)
@@ -66,14 +67,12 @@ class Com():
         if (event.dest == self.myId):
             self.inc_clock_receive(event.getStamp())
             self.mailbox.append(event)
-            print(self.getName() + ' get message: ' + str(event.getPayload()) + "Horloge :" + str(self.clock))
 
 
     def sendTo(self, message, dest):
         self.inc_clock()
         m = MessageDedie(message,self.clock, dest)
         PyBus.Instance().post(m)
-        print(self.getName() + " send: " + str(m.getPayload()) +  "Horloge :" + str(self.clock))
         
     
     # Message asynchrone broadcast
@@ -82,12 +81,11 @@ class Com():
         if (event.sender != self.myId):
             self.inc_clock_receive(event.getStamp())
             self.mailbox.append(event)
-            print(self.getName() + ' get message: ' + str(event.getPayload()) + "Horloge :" + str(self.clock))
+
         
     def broadcast(self, contenu):
         self.inc_clock()
         m = MessageBroadCast(contenu, self.clock, self.myId)
-        print(self.getName() + " send: " + str(m.getPayload()) +  "Horloge :" + str(self.clock))
         PyBus.Instance().post(m)
         
     # Gestion de section critique
@@ -96,7 +94,7 @@ class Com():
         if (event.to == self.myId):
             if (self.tokenState == State.REQUEST):
                 self.tokenState = State.SC
-                print(self.getName() + " get token" + "at " + time.strftime("%H:%M:%S", time.localtime()))
+                print("P" + str(self.myId) + " est en section critique")
                 while (self.tokenState == State.SC):
                     sleep(1)
             
@@ -125,9 +123,7 @@ class Com():
     def synchronize(self):
         self.inc_clock()
         PyBus.Instance().post(Synchronization(self.clock, self.myId))
-        print(self.getName() + " wait for synchronization")
         while (self.counterSynchro > 1): # 1 car on recoit pas notre propre message
-            print(self.getName() + " is waiting for " + str(self.counterSynchro) + " processes")
             sleep(1)
         print(self.getName() + " is synchronized")
         self.counterSynchro = self.nbProcess
@@ -164,7 +160,8 @@ class Com():
         while (self.messageReceived == False):
             sleep(1)
         lastMessage = self.mailbox.pop()
-        m = MessageDedieSynchrone("", self.clock, lastMessage.sender)
+        print(self.name + " a reçu : " + lastMessage.getPayload())
+        m = MessageDedieSynchroneReply("", self.clock, lastMessage.sender)
         PyBus.Instance().post(m)
         self.messageReceived = False
     
@@ -177,7 +174,7 @@ class Com():
         
     def sendToSync(self, message, dest):
         self.inc_clock()
-        m = MessageDedieSynchrone(message, self.clock, dest)
+        m = MessageDedieSynchrone(message, self.clock, dest, self.myId)
         PyBus.Instance().post(m)
         while (self.messageReceived == False):
             sleep(1)
@@ -188,20 +185,18 @@ class Com():
         if (self.name == "P0"):
             self.myId = 0
         else :
-            self.myId = randint(1, self.nbProcess)
+            self.myId = randint(1, self.nbProcess - 1)
             
     def numerotation(self):
         self.generateId()
         if self.name == "P0":
             self.waitForIds()  # P0 attend que tous les processus envoient leurs IDs
         else:
-            print(f"{self.name} a généré l'ID {self.myId} et l'envoie à P0.")
             self.sendId(0)  # Envoyer l'ID à P0
           
     @subscribe(threadMode = Mode.PARALLEL, onEvent=MessageSendId)
     def onReceiveId(self, event):
         if (event.dest == self.myId):
-            print("P0 a reçu l'ID " + str(event.payload))
             self.generatedIds.append(event.payload)            
                     
     def sendId(self, dest):
@@ -226,7 +221,6 @@ class Com():
     def waitForIds(self):
         while len(self.generatedIds) < self.nbProcessIdToGenerate:  # On attend que tous les processus (sauf P0) envoient un ID
             sleep(1)
-            print(f"{len(self.generatedIds)} IDs reçus")
         self.checkForDuplicateIds()
         
     # Vérifier les doublons et gérer la régénération
@@ -238,7 +232,6 @@ class Com():
             print("Des doublons ont été détectés! Demande de régénération.")
             duplicateIds = [id for id in self.generatedIds if self.generatedIds.count(id) > 1]
             self.nbProcessIdToGenerate = len(duplicateIds)
-            print(set(duplicateIds))
             self.generatedIds = []  # Réinitialiser la liste et recommencer
             for id in set(duplicateIds):
                 # On demande aux processus concernés de régénérer leur ID

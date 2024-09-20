@@ -28,9 +28,10 @@ class MessageBroadcastSynchrone(Message):
         self.sender = sender
         
 class MessageDedieSynchrone(Message):
-    def __init__(self, payload, stamp, dest):
+    def __init__(self, payload, stamp, dest, sender):
         super().__init__(payload, stamp)
         self.dest = dest
+        self.sender = sender
         
 class MessageDedieSynchroneReply(Message):
     def __init__(self, payload, stamp, dest):
