@@ -202,8 +202,7 @@ class Com():
     def onReceiveId(self, event):
         if (event.dest == self.myId):
             print("P0 a reçu l'ID " + str(event.payload))
-            self.generatedIds.append(event.payload)
-            
+            self.generatedIds.append(event.payload)            
                     
     def sendId(self, dest):
         m = MessageSendId(self.myId, dest)
@@ -225,7 +224,6 @@ class Com():
         
     # Attendre que tous les processus envoient leurs IDs (P0)
     def waitForIds(self):
-        print("Attente des IDs des autres processus...")
         while len(self.generatedIds) < self.nbProcessIdToGenerate:  # On attend que tous les processus (sauf P0) envoient un ID
             sleep(1)
             print(f"{len(self.generatedIds)} IDs reçus")
@@ -241,11 +239,10 @@ class Com():
             duplicateIds = [id for id in self.generatedIds if self.generatedIds.count(id) > 1]
             self.nbProcessIdToGenerate = len(duplicateIds)
             print(set(duplicateIds))
+            self.generatedIds = []  # Réinitialiser la liste et recommencer
             for id in set(duplicateIds):
                 # On demande aux processus concernés de régénérer leur ID
                 self.requestRegenerateId(id)
-            self.generatedIds = []  # Réinitialiser la liste et recommencer
-            print("Regen")
             self.waitForIds()  # Recommencer le processus d'attente d'IDs après la régénération
             
     
