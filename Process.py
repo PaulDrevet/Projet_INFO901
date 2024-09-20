@@ -47,6 +47,7 @@ class Process(Thread):
             if (self.com.getMyId() == 2):
                 if not self.com.isMailboxEmpty():
                     print("P" + str(self.com.getMyId()) +" a un message dans sa boite : "+ self.com.getFirstMessage())
+                    
                 self.com.synchronize()
                 self.com.requestSC()
                 self.com.releaseSC()
